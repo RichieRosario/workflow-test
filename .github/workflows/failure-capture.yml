@@ -1,0 +1,36 @@
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Build"
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: exit 1  # Simulamos fallo
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: [build, test]
+    if: ${{ always() && contains(needs.*.result, 'failure') }}
+    steps:
+      - name: Capturar jobs fallidos en variable
+        run: |
+          FAILS_JSON='${{ toJson(needs) }}'
+          # Filtramos y juntamos nombres de trabajos con resultado "failure"
+          FAILS=$(echo "$FAILS_JSON" \
+            | jq -r 'to_entries
+                      | map(select(.value.result=="failure") | .key)
+                      | join(",")')
+          echo "FALLEN_JOBS=$FAILS" >> $GITHUB_ENV
+      - name: Mostrar variable
+        run: |
+          echo "Los trabajos con fallo fueron: ${{ env.FALLEN_JOBS }}"
